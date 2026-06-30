@@ -1,0 +1,8 @@
+# Po sesji testowej — dodaj nowe nagrania:
+python src/rosbag_to_csv.py
+
+# Z folderem old/ (jednorazowo):
+python src/rosbag_to_csv.py --include-old
+
+# Coś się popsuło, chcesz przebudować od zera:
+python src/rosbag_to_csv.py --rebuild
