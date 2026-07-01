@@ -1,7 +1,7 @@
 """
 Export trained ARX Q=0.90 and XGBoost Q=0.90 models to files for ROS2 deployment.
 
-Outputs written to <project_root>/model_weights/:
+Outputs written to vcu_models/model_weights/:
   arx_q90_weights.json    -- ARX coefficients (4 x 31) + intercepts
   xgb_q90_FL.ubj          -- XGBoost model for motor FL
   xgb_q90_FR.ubj          -- XGBoost model for motor FR
@@ -10,10 +10,10 @@ Outputs written to <project_root>/model_weights/:
   xgb_meta.json           -- feature names and motor order (for XGBPredictor)
 
 Usage:
-  python src/export_models.py
+  python vcu_models/export_models.py
 
 After running, copy model_weights/ to the ROS2 package:
-  cp -r model_weights/* ros2_pkg/current_predictor/model_weights/
+  cp -r vcu_models/model_weights/* vcu_models/current_predictor/model_weights/
 """
 
 import json
@@ -25,10 +25,11 @@ import numpy as np
 import pandas as pd
 import xgboost as xgb
 
-SRC_DIR  = Path(__file__).parent
-ROOT_DIR = SRC_DIR.parent
-DATA_DIR = ROOT_DIR / 'data' / 'model'
-WEIGHTS_DIR = ROOT_DIR / 'model_weights'
+VCU_DIR     = Path(__file__).parent
+ROOT_DIR    = VCU_DIR.parent
+SRC_DIR     = ROOT_DIR / 'src'
+DATA_DIR    = ROOT_DIR / 'data' / 'model'
+WEIGHTS_DIR = VCU_DIR / 'model_weights'
 WEIGHTS_DIR.mkdir(exist_ok=True)
 
 if str(SRC_DIR) not in sys.path:

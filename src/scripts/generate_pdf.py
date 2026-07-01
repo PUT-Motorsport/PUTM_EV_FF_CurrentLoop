@@ -1,11 +1,12 @@
 #!/usr/bin/env python3
-"""Convert ros2_integration_guide.md to PDF via weasyprint."""
+"""Convert docs/raport_analiza_modeli.md to PDF via weasyprint."""
 import markdown
 from pathlib import Path
 from weasyprint import HTML, CSS
 
-MD_PATH  = Path(__file__).parent / "ros2_integration_guide.md"
-PDF_PATH = Path(__file__).parent / "ros2_integration_guide.pdf"
+DOCS_DIR = Path(__file__).parent.parent.parent / 'docs'
+MD_PATH  = DOCS_DIR / "raport_analiza_modeli.md"
+PDF_PATH = DOCS_DIR / "raport_analiza_modeli.pdf"
 
 md_text = MD_PATH.read_text(encoding="utf-8")
 
@@ -52,7 +53,6 @@ h2 {
     margin-bottom: 6pt;
     padding-bottom: 3pt;
     border-bottom: 1px solid #cdd5e0;
-    page-break-after: avoid;
 }
 
 h3 {
@@ -61,7 +61,10 @@ h3 {
     color: #2c3e50;
     margin-top: 14pt;
     margin-bottom: 4pt;
-    page-break-after: avoid;
+}
+
+p {
+    margin: 5pt 0 8pt 0;
 }
 
 /* Meta block after h1 */
@@ -71,16 +74,11 @@ h1 + p {
     margin-bottom: 16pt;
 }
 
-p {
-    margin: 5pt 0 8pt 0;
-}
-
 table {
     border-collapse: collapse;
     width: 100%;
     margin: 10pt 0 14pt 0;
     font-size: 9.5pt;
-    page-break-inside: avoid;
 }
 
 th {
@@ -101,13 +99,22 @@ tr:nth-child(even) td {
     background: #f4f7fc;
 }
 
+tr:hover td {
+    background: #eaf1fb;
+}
+
+/* Highlight best values */
+td strong, th strong {
+    color: inherit;
+}
+
 code {
     background: #f0f4f8;
     border: 1px solid #d0d9e6;
     border-radius: 3px;
     padding: 1pt 4pt;
     font-family: 'Courier New', monospace;
-    font-size: 8.5pt;
+    font-size: 9pt;
 }
 
 pre {
@@ -117,19 +124,17 @@ pre {
     border-radius: 4px;
     padding: 10pt 12pt;
     font-family: 'Courier New', monospace;
-    font-size: 8pt;
+    font-size: 8.5pt;
     line-height: 1.5;
+    overflow-x: auto;
     white-space: pre-wrap;
-    word-break: break-all;
     margin: 8pt 0 12pt 0;
-    page-break-inside: avoid;
 }
 
 pre code {
     background: none;
     border: none;
     padding: 0;
-    font-size: 8pt;
 }
 
 blockquote {
@@ -140,7 +145,6 @@ blockquote {
     color: #4a3800;
     font-size: 9.5pt;
     border-radius: 0 4px 4px 0;
-    page-break-inside: avoid;
 }
 
 ul, ol {
@@ -161,13 +165,21 @@ hr {
     border-top: 1px solid #cdd5e0;
     margin: 18pt 0;
 }
+
+/* Page break hints */
+h2 {
+    page-break-after: avoid;
+}
+table {
+    page-break-inside: avoid;
+}
 """
 
 full_html = f"""<!DOCTYPE html>
 <html lang="pl">
 <head>
 <meta charset="UTF-8">
-<title>Instrukcja wdrożenia predyktora prądów do ROS2</title>
+<title>Raport — Modele predykcji prądów silników</title>
 </head>
 <body>
 {body_html}

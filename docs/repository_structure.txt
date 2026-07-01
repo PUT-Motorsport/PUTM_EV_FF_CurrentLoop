@@ -1,0 +1,224 @@
+PUTM_EV_FF_CurrentLoop — Opis struktury repozytorium
+======================================================
+Projekt: Power Limiter / Torque Vectoring — PUTMotorsport Formula Student
+Cel: predykcja 1-krokowa prądów 4 silników (FL/FR/RL/RR) @ 5 Hz dla limitera 80 kW
+Data aktualizacji: 2026-07-01
+
+
+=== data/ ===
+
+data/model/training_data.csv
+    Główny zbiór danych treningowych.
+    5693 wierszy, 5 Hz, 10 przejazdów (run_id 2-11), 19 kolumn:
+    timestamp_s, run_id, I_FL, I_FR, I_RL, I_RR (prądy inwertorów, raw ADC),
+    T_FL, T_FR, T_RL, T_RR (setpointy momentu [Nm]),
+    v_FL/FR/RL/RR (prędkości silników [RPM]),
+    Iq_FL/FR/RL/RR (prądy osi q [raw ADC]),
+    U_dc (napięcie szyny DC, raw/10 = V).
+
+data/model/training_data_manifest.json
+    Manifest inkrementalnego ETL. Śledzi przetworzone pliki .mcap
+    (klucz: nazwa_pliku:rozmiar) i następny run_id. Używany przez
+    src/scripts/rosbag_to_csv.py.
+
+data/rosbag2/*.mcap
+    Nagrania ROS2 (format MCAP) z sesji testowych 2026-06-29/30.
+    Wykluczony z gita (.gitignore). Run-y 0-1 pominięte (brak topiku
+    current_sensor); run-y 2-11 trafiły do training_data.csv.
+
+
+=== src/ ===
+
+src/00_drive_connection_check.ipynb
+    Notebook weryfikujący połączenie z Google Drive (dostęp do danych).
+
+src/01_data_analysis.ipynb
+    Eksploracyjna analiza danych (EDA): rozkłady prądów, korelacje,
+    wizualizacja przebiegów per run_id, statystyki opisowe.
+
+src/02_kalman_ekf.ipynb
+    4x EKF (Extended Kalman Filter), jeden na silnik.
+    Stan: [I_dc, dI/dt, P_mech]. Jacobian obliczany dla U_dc.
+    Zawiera baseline CV (constant velocity) do porównania.
+    DT=0.2s, podział na train/test po run_id.
+
+src/03_xgboost_current.ipynb
+    4x XGBoost (jeden na silnik, wspólna macierz cech).
+    Hyperparametry dobrane przez RandomizedSearchCV na silniku FL,
+    reużyte dla FR/RL/RR.
+    Zawiera wariant standardowy (cel: średnia) i konserwatywny Q=0.90
+    (cel: 90. percentyl, FN=0, Recall=100%).
+
+src/04_arx_armax.ipynb
+    ARX multi-output (Ridge, 4 silniki naraz) i ARMAX single-output
+    (4 osobne modele z buforem residuów MA).
+    Zawiera wariant ARX Q=0.90 (QuantileRegressor, FN=1).
+    ARMAX odrzucony: FN=69, 1000x wolniejszy od ARX.
+
+src/05_tcn.ipynb
+    4x MinimalTCN (Temporal Convolutional Network, pure-numpy).
+    2 warstwy dilated causal conv + Adam. 6-kanałowe wejście, N_SEQ=5.
+    Jeden model na silnik.
+
+src/06_esn.ipynb
+    Echo State Network, multi-output (jeden rezerwuar, Ridge readout 4-wyjściowy).
+    Zawiera sweep hiperparametrów (spectral_radius, sparsity, n_reservoir).
+
+src/functions/arx.py
+    Klasa ARXModel: Ridge lub QuantileRegressor.
+    Multi-output (y shape (n,4)) dla Ridge; 4x single-output dla Quantile.
+
+src/functions/armax.py
+    Klasa ARMAXModel: dwupasowy Ridge + rolling residuum MA.
+    Single-output (jeden model na silnik). Inferencja sekwencyjna.
+
+src/functions/ekf_nonlinear.py
+    Klasa EKFNonlinear: EKF ze stanem [I_dc, dI/dt, P_mech].
+    Jacobian F zmienia się z U_dc. Krok predykcji + korekcja.
+
+src/functions/esn.py
+    Klasa EchoStateNetwork: inicjalizacja rezerwuaru, fit Ridge, predict.
+    Multi-output natywne przez sklearn Ridge (y shape (n,4)).
+
+src/functions/evaluation.py
+    Moduł ewaluacji modeli. Funkcje:
+    - display_model_results(): metryki + wykresy (scatter, residua, histogram,
+      moc DC vs limit 80 kW, feature importance, learning curve).
+    - compare_models(): tabela porównawcza + wykresy słupkowe.
+    - save_results_to_excel(): zapis/aktualizacja wyników do XLSX.
+    Kluczowe metryki: RMSE, MAE, MedAE, R2, Underpred.%, FN, FP, Recall,
+    Power RMSE [kW], ms/próbkę.
+
+src/functions/kalman_filter.py
+    Klasa KalmanFilter: liniowy KF, model CV (constant velocity).
+    Obsługuje n_motors=4 jako block-diagonal (wspólna macierz stanu).
+
+src/functions/tcn.py
+    Klasa MinimalTCN: pure-numpy TCN bez zewnętrznych zależności ML.
+    Dilated causal convolution + Adam optimizer. Single-output na instancję.
+
+src/scripts/rosbag_to_csv.py
+    ETL inkrementalny: .mcap → training_data.csv.
+    Czyta topiki: /putm_vcl/current_sensor, /putm_vcl/setpoints,
+    /putm_vcl/bms_hv_main, /putm_vcl/amk/{pos}/actual_values1.
+    Dekoduje CDR ręcznie (struct.unpack). Wyrównuje do siatki 5 Hz
+    z current_sensor. Manifest śledzi przetworzone pliki.
+    Użycie: python3 src/scripts/rosbag_to_csv.py [--include-old] [--rebuild]
+
+src/scripts/check_rear_only_setpoints.py
+    Skrypt diagnostyczny: sprawdza które pliki .mcap mają setpointy
+    momentu tylko dla tylnych silników (RL/RR), bez FL/FR.
+
+src/scripts/generate_notebooks.py
+    Generator szablonów notebooków: tworzy szkielety 02-06 z powtarzalną
+    strukturą (import, stałe, split danych).
+
+src/scripts/generate_pdf.py
+    Konwertuje docs/raport_analiza_modeli.md na PDF przez weasyprint.
+    Użycie: python3 src/scripts/generate_pdf.py
+
+src/scripts/generate_ros2_guide_pdf.py
+    Konwertuje docs/ros2_integration_guide.md na PDF przez weasyprint.
+    Użycie: python3 src/scripts/generate_ros2_guide_pdf.py
+
+
+=== vcu_models/ ===
+
+vcu_models/export_models.py
+    Trenuje ARX Q=0.90 i XGBoost Q=0.90 na pełnym zbiorze treningowym
+    i zapisuje wagi do vcu_models/model_weights/.
+    Użycie: python3 vcu_models/export_models.py
+
+vcu_models/model_weights/arx_q90_weights.json
+    Wagi modelu ARX Q=0.90: macierz coef (4x31) + intercept (4).
+    Format JSON. Ładowane przez vcu_models/current_predictor/.../arx_predictor.py.
+
+vcu_models/model_weights/xgb_q90_{FL|FR|RL|RR}.ubj
+    Modele XGBoost Q=0.90, jeden plik na silnik (format UBJ = Universal Binary JSON).
+    Ładowane przez vcu_models/current_predictor/.../xgb_predictor.py.
+
+vcu_models/model_weights/xgb_meta.json
+    Metadane XGBoost: lista 31 nazw cech, kolejność silników, parametry.
+
+vcu_models/current_predictor/
+    Pakiet ROS2 (ament_python) z predyktorem prądów dla limitera 80 kW.
+    Deployment: skopiować do ~/ros2_ws/src/ i zbudować przez colcon.
+
+vcu_models/current_predictor/package.xml
+    Manifest pakietu ROS2. Zależności: rclpy, std_msgs, diagnostic_msgs.
+
+vcu_models/current_predictor/setup.py
+    Konfiguracja instalacji ament_python. Instaluje model_weights/,
+    launch/ i config/ do share/current_predictor/.
+
+vcu_models/current_predictor/config/params.yaml
+    Parametry node'a: n_lags=5, publish_rate_hz=5.0, power_limit_w=80000.
+    Nazwy topiców wejściowych (placeholdery do zastąpienia nazwami VCL).
+
+vcu_models/current_predictor/launch/current_predictor.launch.py
+    Launch file ROS2. Parametry: current_topic, torque_topic, voltage_topic.
+
+vcu_models/current_predictor/current_predictor/node.py
+    Główny node ROS2 (CurrentPredictorNode). Timer 5 Hz.
+    Subskrybuje 3 topiki (prądy/momenty/napięcie), publikuje 6 topiców.
+    SEKCJA ADAPTER (~linia 80): 3 metody do zastąpienia rzeczywistymi
+    typami wiadomości VCL (/putm_vcl/current_sensor, /putm_vcl/setpoints,
+    /putm_vcl/bms_hv_main).
+
+vcu_models/current_predictor/current_predictor/lag_buffer.py
+    LagBuffer: shift-register dla 31 cech (deque maxlen=6 na sygnał).
+    Metody: update(), get_feature_vector(), reset().
+
+vcu_models/current_predictor/current_predictor/arx_predictor.py
+    ARXPredictor: ładuje arx_q90_weights.json, jeden dot product (4x31).
+
+vcu_models/current_predictor/current_predictor/xgb_predictor.py
+    XGBPredictor: ładuje 4 modele XGBoost, predict per silnik.
+
+vcu_models/current_predictor/model_weights/
+    Placeholder (pusty). Wypełnić przed budowaniem ROS2:
+    cp -r vcu_models/model_weights/* vcu_models/current_predictor/model_weights/
+
+
+=== docs/ ===
+
+docs/raport_analiza_modeli.md
+    Źródło raportu z wynikami modeli (MD). Generuje raport_analiza_modeli.pdf.
+
+docs/raport_analiza_modeli.pdf
+    Raport PDF: szczegółowe wyniki ARX/ARMAX/XGBoost + opis modeli
+    + rekomendacja wdrożeniowa (XGBoost Q=0.90 + ARX Q=0.90 + EKF).
+
+docs/ros2_integration_guide.md
+    Źródło instrukcji integracji ROS2 (MD). Generuje ros2_integration_guide.pdf.
+
+docs/ros2_integration_guide.pdf
+    Instrukcja PDF: krok po kroku wdrożenie pakietu current_predictor
+    do workspace ROS2 (eksport modeli → build → adapter VCL → launch → weryfikacja).
+
+docs/notatnik.txt
+    Szybkie komendy CLI do codziennego użytku
+    (rosbag_to_csv.py z różnymi flagami).
+
+docs/repository_structure.txt
+    Ten plik. Opis wszystkich plików i katalogów w repozytorium.
+
+
+=== Pliki konfiguracyjne ===
+
+.gitignore
+    Wyklucza: data/rosbag2/ (pliki .mcap), __pycache__/, *.pyc, *.pyo.
+
+.claude/settings.local.json
+    Ustawienia lokalne Claude Code dla tego projektu.
+
+.claude/notes/ros2_integration.md
+    Notatka z sesji 2026-07-01 — podsumowanie integracji ROS2,
+    co zrobiono, co pozostało (sekcja ADAPTER).
+
+
+=== Wyniki modeli (nie w git) ===
+
+src/model_results.xlsx
+    Plik Excel generowany przez evaluation.py: wyniki wszystkich
+    wytrenowanych modeli (RMSE, FN, Recall, ms/próbkę itd.).
