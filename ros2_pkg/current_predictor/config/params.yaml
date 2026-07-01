@@ -1,0 +1,19 @@
+current_predictor:
+  ros__parameters:
+    # Prediction settings
+    n_lags:           5        # must match training (N_LAGS=5, lookback=1 s at 5 Hz)
+    publish_rate_hz:  5.0      # Hz — match control loop frequency
+    power_limit_w:    80000.0  # W  — Formula Student regulation
+
+    # Input topics (replace with actual putm_vcl topic names when message types are wired)
+    # Actual VCL topics:
+    #   current_topic: /putm_vcl/current_sensor   (custom CDR: 4x uint16)
+    #   torque_topic:  /putm_vcl/setpoints         (custom CDR: 4x int32 [Nm])
+    #   voltage_topic: /putm_vcl/bms_hv_main       (custom CDR: uint16, /10 = V)
+    current_topic: current_sensors_data
+    torque_topic:  torque_setpoints
+    voltage_topic: bus_voltage
+
+    # weights_dir is set automatically from the installed package path (see launch file).
+    # Override here for development without colcon install:
+    # weights_dir: /home/michal/Desktop/PUTMotorsport/PowerLimiter/PUTM_EV_FF_CurrentLoop/model_weights

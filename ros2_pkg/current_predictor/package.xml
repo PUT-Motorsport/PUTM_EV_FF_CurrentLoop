@@ -1,0 +1,27 @@
+<?xml version="1.0"?>
+<?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
+<package format="3">
+  <name>current_predictor</name>
+  <version>1.0.0</version>
+  <description>
+    1-step-ahead motor current predictor for the 80 kW power limiter.
+    Uses ARX Q=0.90 (FN=1) and XGBoost Q=0.90 (FN=0) as a dual-model
+    conservative ensemble. Publishes predicted currents, DC power estimate,
+    and an 80 kW limit-exceeded flag.
+  </description>
+  <maintainer email="michal.blotniak@onet.pl">Michał Błotniak</maintainer>
+  <license>MIT</license>
+
+  <depend>rclpy</depend>
+  <depend>std_msgs</depend>
+  <depend>diagnostic_msgs</depend>
+
+  <test_depend>ament_copyright</test_depend>
+  <test_depend>ament_flake8</test_depend>
+  <test_depend>ament_pep257</test_depend>
+  <test_depend>python3-pytest</test_depend>
+
+  <export>
+    <build_type>ament_python</build_type>
+  </export>
+</package>
