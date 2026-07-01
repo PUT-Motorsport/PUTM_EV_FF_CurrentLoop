@@ -1,0 +1,51 @@
+{
+  "feature_names": [
+    "I_FL",
+    "I_FL_lag1",
+    "I_FL_lag2",
+    "I_FL_lag3",
+    "I_FL_lag4",
+    "I_FL_lag5",
+    "I_FR",
+    "I_FR_lag1",
+    "I_FR_lag2",
+    "I_FR_lag3",
+    "I_FR_lag4",
+    "I_FR_lag5",
+    "I_RL",
+    "I_RL_lag1",
+    "I_RL_lag2",
+    "I_RL_lag3",
+    "I_RL_lag4",
+    "I_RL_lag5",
+    "I_RR",
+    "I_RR_lag1",
+    "I_RR_lag2",
+    "I_RR_lag3",
+    "I_RR_lag4",
+    "I_RR_lag5",
+    "T_sum",
+    "T_sum_lag1",
+    "T_sum_lag2",
+    "T_sum_lag3",
+    "T_sum_lag4",
+    "T_sum_lag5",
+    "U_dc"
+  ],
+  "motors": [
+    "FL",
+    "FR",
+    "RL",
+    "RR"
+  ],
+  "n_lags": 5,
+  "quantile": 0.9,
+  "params": {
+    "n_estimators": 200,
+    "max_depth": 3,
+    "learning_rate": 0.1,
+    "subsample": 0.7,
+    "colsample_bytree": 0.7,
+    "min_child_weight": 1
+  }
+}
